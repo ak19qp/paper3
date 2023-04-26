@@ -1,22 +1,22 @@
-################################################################################
-# Copyright (c) 2019 Geneviève Bastien
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
-#
-# basicAnalysis.py
-################################################################################
-
 # load proper Trace Compass modules
 loadModule('/TraceCompass/Analysis');
+loadModule('/TraceCompass/Trace');
 loadModule('/TraceCompass/View');
 loadModule('/TraceCompass/DataProvider');
 
 from py4j.java_gateway import JavaClass
+from datetime import datetime
+
+
+print("Start")
+
+# Get the active trace
+trace = getActiveTrace()
+
+
 
 # Create an analysis for this script
-analysis = getAnalysis("activetid_python.js")
+analysis = createScriptedAnalysis(trace, "activetid_python.js")
 
 if analysis is None:
     print("Trace is null")
@@ -32,6 +32,14 @@ def strToVarargs(str):
     object_array[0] = str
     return object_array
 
+
+def time_str_to_int(time):
+    time = time.replace(" ", "")
+    time_list = time.split(":")
+    time_builder = (float(time_list[0]) * 3600) + (float(time_list[1]) * 60) + float(time_list[2])
+
+    return time_builder
+
 # The analysis itself is in this function
 def runAnalysis():
     # Get the event iterator for the trace
@@ -39,6 +47,16 @@ def runAnalysis():
    
     # Parse all events
     event = None
+    block_rq_sector_list = []
+    block_rq_Timestamp_list = []
+    block_rq_Timestamp_list_str = []
+    callstack_list = []
+
+    block_rq_complete_sector_list = []
+    block_rq_complete_Timestamp_list = []
+    block_rq_complete_Timestamp_list_str = []
+
+
     while iter.hasNext():
         # The python java gateway keeps a reference to the Java objects it sends to python. To avoid OutOfMemoryException, they need to be explicitly detached from the gateway when not needed anymore
         if not(event is None):
@@ -46,28 +64,60 @@ def runAnalysis():
         
         event = iter.next();
         
-        # Do something when the event is a sched_switch
-        if event.getName() == "sched_switch":
-            # This function is a wrapper to get the value of field CPU in the event, or return null if the field is not present
-            cpu = getFieldValue(event, "CPU")
-            tid = getFieldValue(event, "next_tid")
-            if (not(cpu is None) and not(tid is None)):
-                # Write the tid to the state system, for the attribute corresponding to the cpu
-                quark = ss.getQuarkAbsoluteAndAdd(strToVarargs(str(cpu)))
-                # modify the value, tid is a long, so "" + tid make sure it's a string for display purposes
-                ss.modifyAttribute(event.getTimestamp().toNanos(), str(tid), quark)
+
+        if event.getName() == "block_getrq":
+            nu_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
+            if nu_of_func_callstack == 0:
+                continue
+            sector = str(getEventFieldValue(event, "sector"))
+            start_time_str = str(getEventFieldValue(event, "Timestamp"))
+            callstack = str(getEventFieldValue(event, "context._callstack_user"))
+            start_time = time_str_to_int(start_time_str)
+            block_rq_sector_list.append(sector)
+            block_rq_Timestamp_list.append(start_time)
+            block_rq_Timestamp_list_str.append(start_time_str)
+            callstack_list.append(callstack)
+        
+        if event.getName() == "block_rq_complete":
+            sector = str(getEventFieldValue(event, "sector"))
+            start_time_str = str(getEventFieldValue(event, "Timestamp"))
+            start_time = time_str_to_int(start_time_str)
+            if sector not in block_rq_sector_list:
+                continue
+            block_rq_complete_sector_list.append(sector)
+            block_rq_complete_Timestamp_list.append(start_time)
+            block_rq_complete_Timestamp_list_str.append(start_time_str)
+        
+    
+    for i in range(len(block_rq_sector_list)):
+        output_str = "Sector: " + block_rq_sector_list[i]
+        if block_rq_sector_list[i] not in block_rq_complete_sector_list:
+            output_str = output_str + " : Incomplete/Blocked" + " | User Callstack: " + callstack_list[i]
+        else:
+            indices = [ii for ii, x in enumerate(block_rq_complete_sector_list) if x == block_rq_sector_list[i]]
+            index = 0
+            for j in indices:
+                if block_rq_complete_Timestamp_list[j] > block_rq_Timestamp_list[i]:
+                    index = j
+                    break
+                else:
+                    index = -1
+            
+            if index == -1:
+                output_str = output_str + " | Incomplete/Blocked" + " | User Callstack: " + callstack_list[i]
+            else:
+                period = block_rq_complete_Timestamp_list[index] - block_rq_Timestamp_list[i]
+                output_str = output_str + " | Block Period: " + str(period) + " | User Callstack: " + callstack_list[i]
+            
+            
+        print(output_str)
+        
        
     # Done parsing the events, close the state system at the time of the last event, it needs to be done manually otherwise the state system will still be waiting for values and will not be considered finished building
     if not(event is None):
         ss.closeHistory(event.getTimestamp().toNanos())
 
-# This condition verifies if the state system is completed. For instance, if it had been built in a previous run of the script, it wouldn't run again.
-if not(ss.waitUntilBuilt(0)):
-    # State system not built, run the analysis
-    runAnalysis()
+runAnalysis()
 
-# Get a time graph provider from this analysis, displaying all attributes (which are the cpus here)
-provider = createTimeGraphProvider(analysis, {ENTRY_PATH : '*'});
-if not(provider is None):
-    # Open a time graph view displaying this provider
-    openTimeGraphView(provider)
+print("End")
+
