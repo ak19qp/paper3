@@ -71,7 +71,9 @@ def runAnalysis():
                 continue
             sector = str(getEventFieldValue(event, "sector"))
             start_time_str = str(getEventFieldValue(event, "Timestamp"))
-            callstack = str(getEventFieldValue(event, "context._callstack_user"))
+            callstack = ""
+            for ele in getEventFieldValue(event, "context._callstack_user"):
+                callstack = callstack + str(hex(ele)) + " "
             start_time = time_str_to_int(start_time_str)
             block_rq_sector_list.append(sector)
             block_rq_Timestamp_list.append(start_time)
