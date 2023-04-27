@@ -6,6 +6,14 @@ loadModule('/TraceCompass/DataProvider');
 
 from py4j.java_gateway import JavaClass
 from datetime import datetime
+import os
+
+try: 
+    os.mkdir("csv")
+except OSError as error: 
+    print(error)  
+
+
 
 
 print("Start")
@@ -42,7 +50,7 @@ def time_str_to_int(time):
     return time_builder
 
 # The analysis itself is in this function
-def runAnalysis():
+def runAnalysis(count=-1):
     # Get the event iterator for the trace
     iter = analysis.getEventIterator()
    
@@ -63,8 +71,22 @@ def runAnalysis():
     syscall_entry_list = []
     syscall_entry_Timestamp_list  = []
 
-    
+
+    unique_syscalls = []
+
+
+    if count != -1:
+            count = count + 1
+
     while iter.hasNext():
+        
+        if count != -1 and count > 0:
+            count = count -1
+            print(count)
+        
+        if count == 0:
+            break
+
         # The python java gateway keeps a reference to the Java objects it sends to python. To avoid OutOfMemoryException, they need to be explicitly detached from the gateway when not needed anymore
         if not(event is None):
             gateway.detach(event)
@@ -124,7 +146,7 @@ def runAnalysis():
             
         
     
-    f = open("block_requests.csv", "w")
+    f = open("csv\\"+"block_requests.csv", "w")
     f.write("Callstack,Period\n")
     
 
@@ -156,18 +178,36 @@ def runAnalysis():
 
     f.close()
     
-    f = open("syscalls.csv", "w")
+    f = open("csv\\"+"syscalls_combined.csv", "w")
     f.write("Syscall,Callstack,Period\n")
 
-    syscall_entry_list.append([event.getName(),tid_pid_str,-1.0,callstack])
+    print("d1")
     for ele in syscall_entry_list:
         f.write(str(ele[0])+","+str(ele[3])+","+str(ele[2])+"\n")
-    
+        if ele[0] not in unique_syscalls:
+            unique_syscalls.append(ele[0])
     f.close()
 
+    print("d2")
+    for ele in unique_syscalls:
+        f = open("csv\\"+ele+".csv", "w")
+        f.write("Callstack,Period\n")
+        f.close()
+
+    print("d3")
+    for ele in unique_syscalls:
+        f = open("csv\\"+ele+".csv", "a")
+        for ele_all in syscall_entry_list:
+            if ele_all[0] == ele:
+                f.write(str(ele_all[3])+","+str(ele_all[2])+"\n")
+        f.close()
+
+    print("d4")
     # Done parsing the events, close the state system at the time of the last event, it needs to be done manually otherwise the state system will still be waiting for values and will not be considered finished building
     if not(event is None):
         ss.closeHistory(event.getTimestamp().toNanos())
+    print("d5")
+
 
 runAnalysis()
 
