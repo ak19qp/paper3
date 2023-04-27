@@ -13,7 +13,8 @@ print("Start")
 # Get the active trace
 trace = getActiveTrace()
 
-
+block_requests = []
+syscalls = []
 
 # Create an analysis for this script
 analysis = createScriptedAnalysis(trace, "activetid_python.js")
@@ -47,16 +48,22 @@ def runAnalysis():
    
     # Parse all events
     event = None
+
+
     block_rq_sector_list = []
     block_rq_Timestamp_list = []
     block_rq_Timestamp_list_str = []
-    callstack_list = []
+    callstack_list_block_rq = []
 
     block_rq_complete_sector_list = []
     block_rq_complete_Timestamp_list = []
     block_rq_complete_Timestamp_list_str = []
 
 
+    syscall_entry_list = []
+    syscall_entry_Timestamp_list  = []
+
+    
     while iter.hasNext():
         # The python java gateway keeps a reference to the Java objects it sends to python. To avoid OutOfMemoryException, they need to be explicitly detached from the gateway when not needed anymore
         if not(event is None):
@@ -66,8 +73,8 @@ def runAnalysis():
         
 
         if event.getName() == "block_getrq":
-            nu_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
-            if nu_of_func_callstack == 0:
+            num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
+            if num_of_func_callstack == 0:
                 continue
             sector = str(getEventFieldValue(event, "sector"))
             start_time_str = str(getEventFieldValue(event, "Timestamp"))
@@ -78,9 +85,9 @@ def runAnalysis():
             block_rq_sector_list.append(sector)
             block_rq_Timestamp_list.append(start_time)
             block_rq_Timestamp_list_str.append(start_time_str)
-            callstack_list.append(callstack)
+            callstack_list_block_rq.append(callstack)
         
-        if event.getName() == "block_rq_complete":
+        elif event.getName() == "block_rq_complete":
             sector = str(getEventFieldValue(event, "sector"))
             start_time_str = str(getEventFieldValue(event, "Timestamp"))
             start_time = time_str_to_int(start_time_str)
@@ -89,12 +96,43 @@ def runAnalysis():
             block_rq_complete_sector_list.append(sector)
             block_rq_complete_Timestamp_list.append(start_time)
             block_rq_complete_Timestamp_list_str.append(start_time_str)
+
+        elif "syscall_entry" in event.getName():
+            num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
+            if num_of_func_callstack == 0:
+                continue
+            tid_pid_str = event.getName().replace("syscall_entry","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
+            start_time_str = str(getEventFieldValue(event, "Timestamp"))
+            start_time = time_str_to_int(start_time_str)
+            callstack = ""
+            for ele in getEventFieldValue(event, "context._callstack_user"):
+                callstack = callstack + str(hex(ele)) + " "
+            syscall_entry_list.append([event.getName().replace("syscall_entry",""),tid_pid_str,-1.0,callstack])
+            syscall_entry_Timestamp_list.append(start_time)
+        
+        elif "syscall_exit" in event.getName():
+            tid_pid_str = event.getName().replace("syscall_exit","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
+            for x in range(len(syscall_entry_list)-1,-1,-1):
+                if syscall_entry_list[x][1] == tid_pid_str:
+                    timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
+                    period = timestamp - syscall_entry_Timestamp_list[x]
+                    syscall_entry_list[x][2] = period
+                    break
+        
+
+
+            
         
     
+    f = open("block_requests.csv", "w")
+    f.write("Callstack,Period\n")
+    
+
     for i in range(len(block_rq_sector_list)):
         output_str = "Sector: " + block_rq_sector_list[i]
         if block_rq_sector_list[i] not in block_rq_complete_sector_list:
-            output_str = output_str + " : Incomplete/Blocked" + " | User Callstack: " + callstack_list[i]
+            output_str = output_str + " : Incomplete/Blocked" + " | User Callstack: " + callstack_list_block_rq[i]
+            f.write(callstack_list_block_rq[i]+",-1.0\n")
         else:
             indices = [ii for ii, x in enumerate(block_rq_complete_sector_list) if x == block_rq_sector_list[i]]
             index = 0
@@ -106,15 +144,27 @@ def runAnalysis():
                     index = -1
             
             if index == -1:
-                output_str = output_str + " | Incomplete/Blocked" + " | User Callstack: " + callstack_list[i]
+                output_str = output_str + " | Incomplete/Blocked" + " | User Callstack: " + callstack_list_block_rq[i]
+                f.write(callstack_list_block_rq[i]+",-1.0\n")
             else:
                 period = block_rq_complete_Timestamp_list[index] - block_rq_Timestamp_list[i]
-                output_str = output_str + " | Block Period: " + str(period) + " | User Callstack: " + callstack_list[i]
-            
-            
+                output_str = output_str + " | Block Period: " + str(period) + " | User Callstack: " + callstack_list_block_rq[i]
+                f.write(callstack_list_block_rq[i]+","+str(period)+"\n")
+                            
+           
         print(output_str)
-        
-       
+
+    f.close()
+    
+    f = open("syscalls.csv", "w")
+    f.write("Syscall,Callstack,Period\n")
+
+    syscall_entry_list.append([event.getName(),tid_pid_str,-1.0,callstack])
+    for ele in syscall_entry_list:
+        f.write(str(ele[0])+","+str(ele[3])+","+str(ele[2])+"\n")
+    
+    f.close()
+
     # Done parsing the events, close the state system at the time of the last event, it needs to be done manually otherwise the state system will still be waiting for values and will not be considered finished building
     if not(event is None):
         ss.closeHistory(event.getTimestamp().toNanos())
@@ -122,4 +172,3 @@ def runAnalysis():
 runAnalysis()
 
 print("End")
-
