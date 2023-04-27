@@ -137,15 +137,13 @@ def runAnalysis(count=-1):
             for x in range(len(syscall_entry_list)-1,-1,-1):
                 if syscall_entry_list[x][1] == tid_pid_str:
                     timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-                    period = (timestamp - syscall_entry_Timestamp_list[x]) / 1000
+                    period = (timestamp - syscall_entry_Timestamp_list[x]) * 1000000
                     syscall_entry_list[x][2] = period
                     break
         
 
 
-            
-        
-    
+
     f = open("csv\\"+"block_requests.csv", "w")
     f.write("Callstack,Period\n")
     
@@ -169,7 +167,7 @@ def runAnalysis(count=-1):
                 output_str = output_str + " | Incomplete/Blocked" + " | User Callstack: " + callstack_list_block_rq[i]
                 f.write(callstack_list_block_rq[i]+",-1.0\n")
             else:
-                period = (block_rq_complete_Timestamp_list[index] - block_rq_Timestamp_list[i]) / 1000
+                period = (block_rq_complete_Timestamp_list[index] - block_rq_Timestamp_list[i]) * 1000000
                 output_str = output_str + " | Block Period: " + str(period) + " | User Callstack: " + callstack_list_block_rq[i]
                 f.write(callstack_list_block_rq[i]+","+str(period)+"\n")
                             
