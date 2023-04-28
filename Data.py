@@ -153,7 +153,7 @@ def runAnalysis(count=-1,commfilter=""):
             devsector = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector"))
             timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
             found = False
-            track = len(block_rq_insert_list)
+            track = len(block_rq_issue_list)
             for i in range(len(block_rq_issue_list)-1,-1,-1):
                 track = track-1
                 if devsector == block_rq_issue_list[i][1] and timestamp >= block_rq_issue_list[i][2]:
