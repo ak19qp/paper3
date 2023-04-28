@@ -79,7 +79,7 @@ def analyze_sched():
     #this needs fixing, for some reason .std is returning nan
     Waking_Switch_Threshold = df.iloc[:,0].mean() + df.iloc[:,0].std()
 
-    print(df.iloc[:,0].std())
+    
 
     unique_functions_in_callstacks = []
 
