@@ -50,7 +50,7 @@ def time_str_to_int(time):
     return time_builder
 
 # The analysis itself is in this function
-def runAnalysis(count=-1):
+def runAnalysis(count=-1,commfilter=""):
     # Get the event iterator for the trace
     iter = analysis.getEventIterator()
    
@@ -89,10 +89,19 @@ def runAnalysis(count=-1):
         
         event = iter.next();
         
+        if commfilter != "":
+            if event.getName() != "block_rq_complete" and event.getName() != "sched_switch":
+                if getEventFieldValue(event, "comm") != commfilter:
+                    continue
+            elif event.getName() == "sched_switch":
+                    if getEventFieldValue(event, "prev_comm") != commfilter and getEventFieldValue(event, "next_comm") != commfilter:
+                        continue
+        
+        
         if event.getName() == "block_getrq":
-            num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
-            if num_of_func_callstack == 0:
-                continue
+            # num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
+            # if num_of_func_callstack == 0:
+            #     continue
             devsectortidpid = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector")) + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
             timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
             callstack = ""
@@ -271,6 +280,6 @@ def runAnalysis(count=-1):
     # print("d5")
 
 
-runAnalysis(1000)
+runAnalysis(-1,"lttng-consumerd")
 
 print("End")
