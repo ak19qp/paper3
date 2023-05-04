@@ -125,10 +125,8 @@ def runAnalysis(count=-1):
             if entries[3] == unique_functions[i]:
                 temp_list.append(entries[2])
         function_syscalls_period.append(temp_list)
-        print(function_syscalls_period)
-                
 
-    
+                
     
     
     
@@ -137,7 +135,7 @@ def runAnalysis(count=-1):
     #define thresholds here in ms
     a = 0.1 #forget
     b = 5 #success
-    c = 10 #fail
+    c = 100 #fail
 
     functions_status = [[0]*2]*len(unique_functions)
     
