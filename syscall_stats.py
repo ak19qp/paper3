@@ -72,7 +72,6 @@ def runAnalysis(count=-1):
 
         if count != -1 and count > 0:
             count = count -1
-            print(count)
         
         if count == 0:
             break
@@ -83,7 +82,7 @@ def runAnalysis(count=-1):
         
         event = iter.next();
 
-        print("Processing: "+str(getEventFieldValue(event, "Timestamp")))
+        print("Loading Records: "+str(getEventFieldValue(event, "Timestamp")))
         
 
         if "syscall_entry" in event.getName():
@@ -115,27 +114,36 @@ def runAnalysis(count=-1):
             continue
         
 
+    print("Processing...")
    
-    function_syscalls_period = [[]] * len(unique_functions)
+    function_syscalls_period = []
+
 
     for i in range(len(unique_functions)):
+        temp_list = []
         for entries in syscall_entry_list:
             if entries[3] == unique_functions[i]:
-                function_syscalls_period[i].append(entries[2])
+                temp_list.append(entries[2])
+        function_syscalls_period.append(temp_list)
+        print(function_syscalls_period)
+                
 
     
-
     
     
+    
+    print("Checking against thresholds...")
 
-    #define thresholds here
-    a = 1 #forget
-    b = 50 #success
-    c = 100 #fail
+    #define thresholds here in ms
+    a = 0.1 #forget
+    b = 5 #success
+    c = 10 #fail
 
     functions_status = [[0]*2]*len(unique_functions)
+    
 
     for i in range(len(function_syscalls_period)):
+
         for period in function_syscalls_period[i]:
             if period > c:
                 functions_status[i][1] = functions_status[i][1] + 1
@@ -146,7 +154,8 @@ def runAnalysis(count=-1):
             else:
                 continue
     
-
+    
+    print("Writing to file...")
 
     f = open("csv\\"+"syscalls.csv", "w")
     f.write("Function,Total_Syscalls_Success,Total_Syscalls_Failed\n")
