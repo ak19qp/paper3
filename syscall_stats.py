@@ -141,15 +141,21 @@ def runAnalysis(count=-1):
     
 
     for i in range(len(function_syscalls_period)):
+        
 
         for period in function_syscalls_period[i]:
+            print(period)
             if period > c:
                 functions_status[i][1] = functions_status[i][1] + 1
+                print("Fail")
             elif period > b:
+                print("Forget")
                 continue
             elif period > a:
                 functions_status[i][0] = functions_status[i][0] + 1
+                print("Success")
             else:
+                print("Forget")
                 continue
     
     
@@ -164,6 +170,8 @@ def runAnalysis(count=-1):
         f.write(string_builder)
     
     f.close()
+
+    print("Writing to file complete.")
     
     # print("d1")
     # for ele in syscall_entry_list:
