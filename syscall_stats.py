@@ -137,7 +137,7 @@ def runAnalysis(count=-1):
     b = 5 #success
     c = 100 #fail
 
-    functions_status = [[0]*2]*len(unique_functions)
+    functions_status = [ [0] * 2 for _ in range(len(unique_functions))] 
     
 
     for i in range(len(unique_functions)):
