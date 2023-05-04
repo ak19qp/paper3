@@ -143,25 +143,26 @@ def runAnalysis(count=-1):
     for i in range(len(unique_functions)):
         print("\n")
         print("Function: "+unique_functions[i])
+        
         for period in function_syscalls_period[i]:
             print("Period: "+str(period))
             if period > c:
                 functions_status[i][1] = functions_status[i][1] + 1
                 print("Fail")
-                print(functions_status[i])
+                print(functions_status)
             elif period > b:
                 print("Forget")
-                print(functions_status[i])
+                print(functions_status)
                 continue
             elif period > a:
                 functions_status[i][0] = functions_status[i][0] + 1
                 print("Success")
-                print(functions_status[i])
+                print(functions_status)
             else:
                 print("Forget")
-                print(functions_status[i])
+                print(functions_status)
                 continue
-    
+        
     
     print("Writing to file...")
 
@@ -205,6 +206,6 @@ def runAnalysis(count=-1):
     # print("d5")
 
 
-runAnalysis()
+runAnalysis(500)
 
 print("End")
