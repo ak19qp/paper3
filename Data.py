@@ -50,35 +50,29 @@ def time_str_to_int(time):
     return time_builder
 
 # The analysis itself is in this function
-def runAnalysis(count=-1,commfilter=""):
+#cs_mode False - only last ele of callstack, True - full callstack
+def runAnalysis(count=-1,cs_mode_full=False):
     # Get the event iterator for the trace
     iter = analysis.getEventIterator()
    
     # Parse all events
     event = None
 
-
-    block_getrq_list = []
-    block_rq_insert_list = []
-    block_rq_issue_list = []
-    block_rq_complete_list = []
-    sched_waking_list = []
-    sched_switch_list = []
   
     
     syscall_entry_list = []
     syscall_entry_Timestamp_list  = []
 
-    unique_syscalls = []
+    unique_functions = []
+    
 
     if count != -1:
             count = count + 1
 
     while iter.hasNext():
-        
+
         if count != -1 and count > 0:
             count = count -1
-            print(count)
         
         if count == 0:
             break
@@ -88,170 +82,111 @@ def runAnalysis(count=-1,commfilter=""):
             gateway.detach(event)
         
         event = iter.next();
+
+        print("Loading Records: "+str(getEventFieldValue(event, "Timestamp")))
         
-        if commfilter != "":
-            if event.getName() != "block_rq_complete" and event.getName() != "sched_switch":
-                if getEventFieldValue(event, "comm") != commfilter:
-                    continue
-            elif event.getName() == "sched_switch":
-                    if getEventFieldValue(event, "prev_comm") != commfilter and getEventFieldValue(event, "next_comm") != commfilter:
-                        continue
-        
-        
-        if event.getName() == "block_getrq":
-            # num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
-            # if num_of_func_callstack == 0:
-            #     continue
-            devsectortidpid = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector")) + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
-            timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
+
+        if "syscall_entry" in event.getName():
+            num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
+            if num_of_func_callstack == 0:
+                continue
+            tidpid_str = event.getName().replace("syscall_entry","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
+            start_time_str = str(getEventFieldValue(event, "Timestamp"))
+            start_time = time_str_to_int(start_time_str)
             callstack = ""
+            callstack_last_function = ""
             for ele in getEventFieldValue(event, "context._callstack_user"):
                 callstack = callstack + str(hex(ele)) + " "
-            block_getrq_list.append([devsectortidpid,timestamp,callstack.rstrip()])
+                callstack_last_function = str(hex(ele))
+            callstack.rstrip()
 
-
-        elif event.getName() == "block_rq_insert":
-            devsectortidpid = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector")) + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
-            timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-            found = False
-            track = len(block_getrq_list)
-            for i in range(len(block_getrq_list)-1,-1,-1):
-                track = track-1
-                if devsectortidpid == block_getrq_list[i][0] and timestamp >= block_getrq_list[i][1]:
-                    found = True
-                    break
-            if found:
-                callstack = ""
-                for ele in getEventFieldValue(event, "context._callstack_user"):
-                    callstack = callstack + str(hex(ele)) + " "
-                block_rq_insert_list.append([track,devsectortidpid,timestamp,callstack.rstrip()])
+            if cs_mode_full:
+                syscall_entry_list.append([event.getName().replace("syscall_entry",""),tidpid_str,-1.0,callstack])
+                if callstack not in unique_functions:
+                    unique_functions.append(callstack)
             else:
-                continue
+                syscall_entry_list.append([event.getName().replace("syscall_entry",""),tidpid_str,-1.0,callstack_last_function])
+                if callstack_last_function not in unique_functions:
+                    unique_functions.append(callstack_last_function)
             
-
-        elif event.getName() == "block_rq_issue":
-            devsectortidpid = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector")) + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
-            devsector = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector"))
-            timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-            found = False
-            track = len(block_rq_insert_list)
-            for i in range(len(block_rq_insert_list)-1,-1,-1):
-                track = track-1
-                if devsectortidpid == block_rq_insert_list[i][1] and timestamp >= block_rq_insert_list[i][2]:
-                    found = True
-                    break
-            if found:
-                callstack = ""
-                for ele in getEventFieldValue(event, "context._callstack_user"):
-                    callstack = callstack + str(hex(ele)) + " "
-                block_rq_issue_list.append([track,devsector,timestamp,callstack.rstrip()])
-            else:
-                continue
-
-
-        elif event.getName() == "block_rq_complete":
-            devsector = str(getEventFieldValue(event, "dev")) + str(getEventFieldValue(event, "sector"))
-            timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-            found = False
-            track = len(block_rq_issue_list)
-            for i in range(len(block_rq_issue_list)-1,-1,-1):
-                track = track-1
-                if devsector == block_rq_issue_list[i][1] and timestamp >= block_rq_issue_list[i][2]:
-                    found = True
-                    break
-            if found:
-                callstack = ""
-                for ele in getEventFieldValue(event, "context._callstack_user"):
-                    callstack = callstack + str(hex(ele)) + " "
-                block_rq_complete_list.append([track,devsector,timestamp,callstack.rstrip()])
-            else:
-                continue
-
-
-        elif event.getName() == "sched_waking":
-            tid = str(getEventFieldValue(event, "tid"))
-            if tid == "":
-                continue
-            else:
-                timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-                callstack = ""
-                for ele in getEventFieldValue(event, "context._callstack_user"):
-                    callstack = callstack + str(hex(ele)) + " "
-                sched_waking_list.append([tid,timestamp,callstack.rstrip()])
-
+            syscall_entry_Timestamp_list.append(start_time)
         
-        elif event.getName() == "sched_switch":
-            next_tid = str(getEventFieldValue(event, "next_tid"))
-            found = False
-            timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-            track = len(sched_waking_list)
-            for i in range(len(sched_waking_list)-1,-1,-1):
-                track = track - 1
-                if next_tid == sched_waking_list[i][0] and timestamp >= sched_waking_list[i][1]:
-                    found = True
+        elif "syscall_exit" in event.getName():
+            tidpid_str = event.getName().replace("syscall_exit","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
+            for x in range(len(syscall_entry_list)-1,-1,-1):
+                if syscall_entry_list[x][1] == tidpid_str:
+                    timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
+                    period = (timestamp - syscall_entry_Timestamp_list[x]) * 1000
+                    syscall_entry_list[x][2] = period
                     break
-            if found:
-                callstack = ""
-                for ele in getEventFieldValue(event, "context._callstack_user"):
-                    callstack = callstack + str(hex(ele)) + " "
-                sched_switch_list.append([track,timestamp,callstack.rstrip()])
-            else:
-                continue
-
-        # elif "syscall_entry" in event.getName():
-        #     num_of_func_callstack = int(getEventFieldValue(event, "context.__callstack_user_length"))
-        #     if num_of_func_callstack == 0:
-        #         continue
-        #     tid_pid_str = event.getName().replace("syscall_entry","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
-        #     start_time_str = str(getEventFieldValue(event, "Timestamp"))
-        #     start_time = time_str_to_int(start_time_str)
-        #     callstack = ""
-        #     for ele in getEventFieldValue(event, "context._callstack_user"):
-        #         callstack = callstack + str(hex(ele)) + " "
-        #     syscall_entry_list.append([event.getName().replace("syscall_entry",""),tid_pid_str,-1.0,callstack])
-        #     syscall_entry_Timestamp_list.append(start_time)
         
-        # elif "syscall_exit" in event.getName():
-        #     tid_pid_str = event.getName().replace("syscall_exit","") + str(getEventFieldValue(event, "TID")) + str(getEventFieldValue(event, "PID"))
-        #     for x in range(len(syscall_entry_list)-1,-1,-1):
-        #         if syscall_entry_list[x][1] == tid_pid_str:
-        #             timestamp = time_str_to_int(str(getEventFieldValue(event, "Timestamp")))
-        #             period = (timestamp - syscall_entry_Timestamp_list[x]) * 1000000
-        #             syscall_entry_list[x][2] = period
-        #             break
+        else:
+            continue
         
 
-    f = open("csv\\"+"block_rq.csv", "w")
-    f.write("Getrq_Insert_Period,Insert_Issue_Period,Issue_Complete_Period,Getrq_Callstack\n")
+    print("Processing...")
+   
+    function_syscalls_period = []
 
-    for i in block_rq_complete_list:
-        track1 = i[0]
-        Issue_Complete = str((i[2] - block_rq_issue_list[track1][2])*1000000)
-        track2 = block_rq_issue_list[track1][0]
-        Insert_Issue = str((block_rq_issue_list[track1][2] - block_rq_insert_list[track2][2])*1000000)
-        track3 = block_rq_insert_list[track2][0]
-        Getrq_Insert = str((block_rq_insert_list[track2][2] - block_getrq_list[track3][1])*1000000)
-        Callstack = block_getrq_list[track3][2]
-        f.write(Getrq_Insert+","+Insert_Issue+","+Issue_Complete+","+Callstack+"\n")
 
-    f.close()
+    for i in range(len(unique_functions)):
+        temp_list = []
+        for entries in syscall_entry_list:
+            if entries[3] == unique_functions[i]:
+                temp_list.append(entries[2])
+        function_syscalls_period.append(temp_list)
+
+                
     
-    # sched_waking_list.append([tid,timestamp,callstack])
-    # sched_switch_list.append([track,timestamp,callstack])
+    
+    
+    print("Checking against thresholds...")
 
-    f = open("csv\\"+"sched.csv", "w")
-    f.write("Waking_Switch_Period,Waking_Callstack,Switch_Callstack\n")
-    for i in sched_switch_list:
-        track1 = i[0]
-        Waking_Switch = str((i[1] - sched_waking_list[track1][1])*1000000)
-        Waking_Callstack = sched_waking_list[track1][2]
-        Switch_Callstack = i[2]
-        f.write(Waking_Switch+","+Waking_Callstack+","+Switch_Callstack+"\n")
+    #define thresholds here in ms
+    a = 0.1 #forget
+    b = 5 #success
+    c = 100 #fail
 
+    functions_status = [ [0] * 2 for _ in range(len(unique_functions))]
+    
+
+    for i in range(len(unique_functions)):
+        print("\n")
+        print("Function: "+unique_functions[i])
+        
+        for period in function_syscalls_period[i]:
+            print("Period: "+str(period))
+            if period > c:
+                functions_status[i][1] += 1
+                print("Fail")
+            elif period > b:
+                print("Forget")
+                continue
+            elif period > a:
+                functions_status[i][0] += 1
+                print("Success")
+            else:
+                print("Forget")
+                continue
+        
+    
+    print("Writing to file...")
+
+    f = open("csv\\"+"syscalls.csv", "w")
+    if cs_mode_full:
+       f.write("Callstack,Total_Syscalls_Success,Total_Syscalls_Failed\n")
+    else:
+        f.write("Function,Total_Syscalls_Success,Total_Syscalls_Failed\n")
+
+    for i in range(len(unique_functions)):
+        #print(function_syscalls_period[i])
+        string_builder = unique_functions[i]+","+str(functions_status[i][0])+","+str(functions_status[i][1])+"\n"
+        f.write(string_builder)
+    
     f.close()
 
-
-
+    print("Writing to file complete.")
+    
     # print("d1")
     # for ele in syscall_entry_list:
     #     f.write(str(ele[0])+","+str(ele[3])+","+str(ele[2])+"\n")
@@ -279,7 +214,8 @@ def runAnalysis(count=-1,commfilter=""):
         ss.closeHistory(event.getTimestamp().toNanos())
     # print("d5")
 
-
-runAnalysis(-1,"lttng-consumerd")
+#parm1: -1 for full trace, or >0 for specific numbers of events starting from event number 0
+#param2: True for full callstack, False for only the last function of the callstack
+runAnalysis(500,True)
 
 print("End")
