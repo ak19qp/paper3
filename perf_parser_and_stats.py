@@ -30,13 +30,18 @@ print("Reading from file...")
 a = open("log.txt", "w")
 
 
+
+should_log = False # set only this to true to log
+
+start_logging = False
+
 with open("test.txt") as file:
 
     mode_enter = False
 
     callstack_string_builder = "-"
 
-    start_logging = False
+    
 
     for line in file:
 
@@ -47,7 +52,8 @@ with open("test.txt") as file:
         
         
         if line == "":
-            a.write("\nEmpty line\n")
+            if start_logging:
+                a.write("\nEmpty line\n")
             if callstack_string_builder != "-" and mode_enter:
                 callstack_string_builder = callstack_string_builder.strip()
                 callstack.append(callstack_string_builder)
@@ -58,7 +64,9 @@ with open("test.txt") as file:
 
         #enter
         if re.match(enter_pattern, line):
-            start_logging = True
+            if should_log:
+                start_logging = True
+                
             mode_enter = True
             if callstack_string_builder != "-":
                 callstack_string_builder = callstack_string_builder.strip()
@@ -74,15 +82,16 @@ with open("test.txt") as file:
 
             syscall.append([process_name,pid,cpu_id,timestamp,syscall_name,0.0,"-",-1.0])
             period.append(0.0)
-            
-            a.write("\n")
-            a.write("Enter mode:\n")
-            a.write("line:\n")
-            a.write(line+"\n")
-            a.write("syscall:\n")
-            a.write(str(syscall[-1])+"\n")
-            a.write("period:\n")
-            a.write(str(period[-1])+"\n")
+
+            if start_logging:
+                a.write("\n")
+                a.write("Enter mode:\n")
+                a.write("line:\n")
+                a.write(line+"\n")
+                a.write("syscall:\n")
+                a.write(str(syscall[-1])+"\n")
+                a.write("period:\n")
+                a.write(str(period[-1])+"\n")
             
             
         #exit
@@ -109,8 +118,6 @@ with open("test.txt") as file:
                         period[i] = float((timestamp) - (syscall[i][3])) * 1000
                         break
 
-
-
             if start_logging:
                 a.write("\n")
                 a.write("Exit mode:\n")
@@ -130,13 +137,13 @@ with open("test.txt") as file:
             if "-"+match.group(1)+"-" not in unique_functions:
                 unique_functions.append("-"+match.group(1)+"-")
 
-            
-            a.write("\n")
-            a.write("Stack mode:\n")
-            a.write("line:\n")
-            a.write(line+"\n")
-            a.write("callstack_string_builder:\n")
-            a.write(callstack_string_builder+"\n")
+            if start_logging:
+                a.write("\n")
+                a.write("Stack mode:\n")
+                a.write("line:\n")
+                a.write(line+"\n")
+                a.write("callstack_string_builder:\n")
+                a.write(callstack_string_builder+"\n")
 
         
         
@@ -231,8 +238,8 @@ for i in range(len(unique_functions)):
         maximum = 0.0
     
 
-    
-    a.write("\nFunc: "+unique_functions[i]+"\n"+str(function_periods[i])+"\nMin:"+str(minimum)+"\nMax:"+str(maximum)+"\nMean:"+str(mean)+"\nStdev:"+str(stdev)+"\n")
+    if start_logging:
+        a.write("\nFunc: "+unique_functions[i]+"\n"+str(function_periods[i])+"\nMin:"+str(minimum)+"\nMax:"+str(maximum)+"\nMean:"+str(mean)+"\nStdev:"+str(stdev)+"\n")
     
 
     period_in_str = ' | '.join(str(f) for f in function_periods[i]).strip().replace("\n","")
