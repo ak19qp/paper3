@@ -35,6 +35,7 @@ should_log = False # set only this to true to log
 
 start_logging = False
 
+#change this file name to the perf script output file name
 with open("test.txt") as file:
 
     mode_enter = False
@@ -66,7 +67,7 @@ with open("test.txt") as file:
         if re.match(enter_pattern, line):
             if should_log:
                 start_logging = True
-                
+
             mode_enter = True
             if callstack_string_builder != "-":
                 callstack_string_builder = callstack_string_builder.strip()
