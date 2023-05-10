@@ -280,12 +280,12 @@ with open("stats_with_addr.csv") as file:
 
         for trace in tracefile:
             if addr in trace:
-                addr = trace.replace(addr,"").split("(/",1)[0].strip().split("+0x",1)[0]
+                addr = trace.replace(addr,"").split("(/",1)[0].strip().split("+0x",1)[0].replace("\n","")
                 break
         
         if "unknown" in addr:
             addr = replace + " | " + addr
-        a.write(line.replace(replace, '"'+addr+'"'))
+        a.write(line.replace(replace+",", '"'+addr+'",', 1))
 
 a.close()
 
