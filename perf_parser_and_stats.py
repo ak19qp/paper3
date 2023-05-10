@@ -1,5 +1,6 @@
 import re
 import statistics
+import math
 
 print("Start")
 
@@ -153,7 +154,7 @@ with open("test.txt") as file:
 a.close()
 
 function_periods = [[] * 2 for _ in range(len(unique_functions))]
-
+function_periods_executor = [[] * 2 for _ in range(len(unique_functions))]
 
 print("Started sorting...")
 
@@ -164,6 +165,11 @@ for function in unique_functions:
     for i in range(len(syscall)):
         if function in syscall[i][6]:
             function_periods[index_counter].append(syscall[i][5])
+            function_periods_executor[index_counter].append(False)
+            if "-"+syscall[i][6].split("-")[-2]+"-" in function:
+                function_periods_executor[index_counter][-1] = True
+
+
 
 
 
@@ -176,16 +182,25 @@ c = 10 #fail
 
 functions_status = [ [0] * 2 for _ in range(len(unique_functions))]
 
+functions_status_sp_and_spo = [ [0] * 2 for _ in range(len(unique_functions))]
+functions_status_fp_and_fpo = [ [0] * 2 for _ in range(len(unique_functions))]
+
 success = 0
 fail = 0
 forget = 0
 total = 0
+
 for i in range(len(unique_functions)):
 
-    for period in function_periods[i]:
+    for j in range(len(function_periods[i])):
+        period = function_periods[i][j]
         if period > c:
             functions_status[i][1] += 1
             fail = fail + 1
+            if function_periods_executor[i][j]:
+                functions_status_fp_and_fpo[i][0] = functions_status_fp_and_fpo[i][0] + 1
+            else:
+                functions_status_fp_and_fpo[i][1] = functions_status_fp_and_fpo[i][1] + 1
             # print("Fail")
         elif period > b:
             forget = forget + 1
@@ -194,6 +209,10 @@ for i in range(len(unique_functions)):
         elif period > a:
             functions_status[i][0] += 1
             success = success + 1
+            if function_periods_executor[i][j]:
+                functions_status_sp_and_spo[i][0] = functions_status_sp_and_spo[i][0] + 1
+            else:
+                functions_status_sp_and_spo[i][1] = functions_status_sp_and_spo[i][1] + 1
             # print("Success")
         else:
             forget = forget + 1
@@ -207,26 +226,17 @@ print("Writing to file...")
 a = open("log2.txt", "w")
 
 f = open("stats_with_addr.csv", "w")
-f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev\n")
+f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
 for i in range(len(unique_functions)):
-    #print(function_syscalls_period[i])
 
     mean = 0.0
     stdev = 0.0
     minimum = 0.0
     maximum = 0.0
     try:
-        # mean = sum(function_periods[i]) / len(function_periods[i])
-        # numerator = 0
-        # for num in function_periods[i]:
-        #     numerator += (num - mean) ** 2
-        # stdev = (numerator / (len(function_periods[i]) - 1)) ** 0.5
-
         mean = statistics.mean(function_periods[i])
         stdev = statistics.stdev(function_periods[i])
     except:
-        # print("error calculating mean and stdev for:")
-        # print(function_periods[i])
         mean = 0.0
         stdev = 0.0
 
@@ -245,7 +255,37 @@ for i in range(len(unique_functions)):
 
     period_in_str = ' | '.join(str(f) for f in function_periods[i]).strip().replace("\n","")
     period_in_str = '"'+period_in_str+'"'
-    string_builder = unique_functions[i].replace("-","")+","+str(len(function_periods[i]))+","+str(functions_status[i][0])+","+str(functions_status[i][1])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+"\n"
+
+
+    failure_p = 0.0
+    context_p = 0.0
+    increase_p = 0.0
+    importance_p = 0.0
+
+    try:
+        failure_p = functions_status_fp_and_fpo[i][0] / (functions_status_sp_and_spo[i][0] + functions_status_fp_and_fpo[i][0])
+    except:
+        failure_p = 0.0
+    
+    try:
+        context_p = functions_status_fp_and_fpo[i][1] / (functions_status_sp_and_spo[i][1] + functions_status_fp_and_fpo[i][1])
+    except:
+        context_p = 0.0
+    
+    try:
+        increase_p = failure_p - context_p
+    except:
+        increase_p = 0.0
+    
+    try:
+        importance_p = 2 / ((1/increase_p)+(1/(math.log(functions_status_fp_and_fpo[i][0])/math.log(fail))))
+    except:
+        importance_p = 0.0
+
+    
+
+
+    string_builder = unique_functions[i].replace("-","")+","+str(len(function_periods[i]))+","+str(functions_status[i][0])+","+str(functions_status[i][1])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(failure_p)+","+str(context_p)+","+str(increase_p)+","+str(importance_p)+"\n"
     f.write(string_builder)
     
 a.close()
@@ -266,14 +306,14 @@ with open("test.txt") as file:
 
 
 a = open("stats_with_name.csv", "w")
-a.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev\n")
 
 with open("stats_with_addr.csv") as file:
 
-    skip = True
+    is_heading = True
     for line in file:
-        if skip:
-            skip = False
+        if is_heading:
+            is_heading = False
+            a.write(line)
             continue
         replace = line.split(",")[0]
         addr = " "+line.split(",")[0]+" "
