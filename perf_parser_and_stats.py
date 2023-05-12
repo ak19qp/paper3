@@ -207,7 +207,7 @@ for i in range(len(unique_functions)):
             forget = forget + 1
             # print("Forget")
             continue
-        elif period > a:
+        elif period >= a:
             functions_status[i][0] += 1
             success = success + 1
             if function_periods_executor[i][j]:
