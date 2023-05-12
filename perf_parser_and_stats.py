@@ -199,6 +199,7 @@ for i in range(len(unique_functions)):
             fail = fail + 1
             if function_periods_executor[i][j]:
                 functions_status_fp_and_fpo[i][0] = functions_status_fp_and_fpo[i][0] + 1
+                functions_status_fp_and_fpo[i][1] = functions_status_fp_and_fpo[i][1] + 1
             else:
                 functions_status_fp_and_fpo[i][1] = functions_status_fp_and_fpo[i][1] + 1
             # print("Fail")
@@ -211,6 +212,7 @@ for i in range(len(unique_functions)):
             success = success + 1
             if function_periods_executor[i][j]:
                 functions_status_sp_and_spo[i][0] = functions_status_sp_and_spo[i][0] + 1
+                functions_status_sp_and_spo[i][1] = functions_status_sp_and_spo[i][1] + 1
             else:
                 functions_status_sp_and_spo[i][1] = functions_status_sp_and_spo[i][1] + 1
             # print("Success")
