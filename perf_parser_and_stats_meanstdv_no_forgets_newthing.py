@@ -173,7 +173,7 @@ for i in range(len(syscall)):
     pairs.append("syscall_"+syscall[i][4])
 
     for j in range(len(pairs)-1):
-        str_opt = pairs[j]+","+pairs[j+1]+","+str(period[i])+"\n"
+        str_opt = str(i)+","+pairs[j]+","+pairs[j+1]+","+str(period[i])+"\n"
         f.write(str_opt)
         newthing.append(str_opt)
 
