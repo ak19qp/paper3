@@ -200,8 +200,8 @@ for line in newthing:
     
 
    
-    addr1 = split_str[0]
-    addr2 = split_str[1]
+    addr1 = split_str[1]
+    addr2 = split_str[2]
 
     name1 = addr1
     name2 = addr2
