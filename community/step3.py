@@ -178,7 +178,7 @@ with open("gephi.csv") as file:
     for line in file:
         if header_ignore:
             line = line.replace("\n","")
-            gephi_header = line.split(",")
+            gephi_header = line.split(",")[1:]
             header_ignore = False
             continue
 
@@ -302,7 +302,7 @@ for x in range(len(unique_functions_weights[0])):
     a = open("log2.txt", "w")
 
     f = open("newwithweights"+str(x)+".csv", "w")
-    f.write(gephi_header[x+"\n"])
+    f.write(gephi_header[x]+"\n")
     f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
     for i in range(len(unique_functions)):
 
