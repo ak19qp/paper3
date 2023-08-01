@@ -42,7 +42,7 @@ with open("test.txt") as file:
 
     mode_enter = False
 
-    callstack_string_builder = "-"
+    callstack_string_builder = "---"
 
     
 
@@ -58,11 +58,11 @@ with open("test.txt") as file:
         if line == "":
             if start_logging:
                 a.write("\nEmpty line\n")
-            if callstack_string_builder != "-" and mode_enter:
+            if callstack_string_builder != "---" and mode_enter:
                 callstack_string_builder = callstack_string_builder.strip()
                 callstack.append(callstack_string_builder)
                 syscall[-1][6] = callstack_string_builder
-                callstack_string_builder = "-"
+                callstack_string_builder = "---"
             continue
 
 
@@ -72,10 +72,10 @@ with open("test.txt") as file:
                 start_logging = True
 
             mode_enter = True
-            if callstack_string_builder != "-":
+            if callstack_string_builder != "---":
                 callstack_string_builder = callstack_string_builder.strip()
                 callstack.append(callstack_string_builder)
-                callstack_string_builder = "-"
+                callstack_string_builder = "---"
 
             match = re.match(enter_pattern, line)
             process_name = match.group(1)
@@ -84,7 +84,7 @@ with open("test.txt") as file:
             timestamp = float(match.group(4))
             syscall_name = match.group(5)
 
-            syscall.append([process_name,pid,cpu_id,timestamp,syscall_name,0.0,"-",-1.0])
+            syscall.append([process_name,pid,cpu_id,timestamp,syscall_name,0.0,"---",-1.0])
             period.append(0.0)
 
             if start_logging:
@@ -101,10 +101,10 @@ with open("test.txt") as file:
         #exit
         elif re.match(exit_pattern, line):
             mode_enter = False
-            if callstack_string_builder != "-":
+            if callstack_string_builder != "---":
                 callstack_string_builder = callstack_string_builder.strip()
                 callstack.append(callstack_string_builder)
-                callstack_string_builder = "-"
+                callstack_string_builder = "---"
             
             match = re.match(exit_pattern, line)
             process_name = match.group(1)
@@ -139,10 +139,10 @@ with open("test.txt") as file:
             #match = re.search(r'^([0-9a-f]+)\s.*$', line)
             funcname = line.split(" ")[1].split("+0x",1)[0]
 
-            callstack_string_builder = callstack_string_builder + funcname + "-"
+            callstack_string_builder = callstack_string_builder + funcname + "---"
 
-            if "-"+funcname+"-" not in unique_functions and "unknown" not in line:
-                unique_functions.append("-"+funcname+"-")
+            if "---"+funcname+"---" not in unique_functions and "unknown" not in line:
+                unique_functions.append("---"+funcname+"---")
 
             if start_logging:
                 a.write("\n")
@@ -168,7 +168,7 @@ f.write("Id,Source,Target,Interval\n")
 for i in range(len(syscall)):
     if period[i] == 0.0:
         continue
-    pairs = syscall[i][6].split("-")[1:-1]
+    pairs = syscall[i][6].split("---")[1:-1]
     pairs.append("syscall_"+syscall[i][4])
 
     for j in range(len(pairs)-1):
@@ -196,13 +196,11 @@ for function in unique_functions:
         if function in syscall[i][6]:
             function_periods[index_counter].append(syscall[i][5])
             function_periods_executor[index_counter].append(False)
-            if "-"+syscall[i][6].split("-")[-2]+"-" in function:
+            tempstore = syscall[i][6].split("---")
+            if len(tempstore) > 1 and "---"+tempstore[1]+"---" in function:
                 function_periods_executor[index_counter][-1] = True
-
-
-
-
-
+            elif "---"+tempstore[0]+"---" in function:
+                function_periods_executor[index_counter][-1] = True
 
 
 
@@ -332,7 +330,7 @@ for i in range(len(unique_functions)):
     
 
 
-    string_builder = unique_functions[i].replace("-","")+","+str(len(function_periods[i]))+","+str(functions_status[i][0])+","+str(functions_status[i][1])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(failure_p)+","+str(context_p)+","+str(increase_p)+","+str(importance_p)+"\n"
+    string_builder = unique_functions[i].replace("---","")+","+str(len(function_periods[i]))+","+str(functions_status[i][0])+","+str(functions_status[i][1])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(failure_p)+","+str(context_p)+","+str(increase_p)+","+str(importance_p)+"\n"
     f.write(string_builder)
     
 a.close()
