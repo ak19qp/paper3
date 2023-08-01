@@ -1,0 +1,9 @@
+Run gephi
+import newthing csv
+run: 	avg degree
+	avg weighted degree
+	hits
+	pagerank
+
+export nodes page as csv
+run step3
