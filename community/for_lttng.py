@@ -190,7 +190,7 @@ class EventList:
 
         gephi_file = "/home/a/Desktop/c_code/bin/Debug/gephi.csv"
         print("Reading gephi data...")
-        with open("gephi.csv") as file:
+        with open(gephi_file) as file:
             header_ignore = True
             for line in file:
                 if header_ignore:
