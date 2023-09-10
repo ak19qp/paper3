@@ -115,7 +115,7 @@ class EventList:
         threshold = 10
 
         for name in functions:
-            for i in functions[name]["periods"]:
+            for i in range(len(functions[name]["periods"])):
                 if functions[name]["periods"][i] >= threshold:
                     functions[name]["fails"] += 1
                     if functions[name]["is_period_executor"][i]:
