@@ -1,10 +1,9 @@
-
-
 import bt2
 import sys
 import pandas as pd
 import re
 import statistics
+import math
 
 class EventList:
 
@@ -12,6 +11,7 @@ class EventList:
     function_name = []
     unique_functions = []
     func_set = set()
+    gephi_headers = []
 
     def __init__(self):
         self.eventsByCpuId = {}
@@ -109,26 +109,99 @@ class EventList:
             )
 
 
-    def final
+    def final_weighted_calculations(self):
+        functions = self.generate_functions_with_weights()
+
+        threshold = 10
+
+        for name in functions:
+            for i in functions[name]["periods"]:
+                if functions[name]["periods"][i] >= threshold:
+                    functions[name]["fails"] += 1
+                    if functions[name]["is_period_executor"][i]:
+                        functions[name]["fail_present"] += 1
+                        functions[name]["fail_observed"] += 1
+                    else:
+                        functions[name]["fail_observed"] += 1
+                else:
+                    functions[name]["successes"] += 1
+                    if functions[name]["is_period_executor"][i]:
+                        functions[name]["success_present"] += 1
+                        functions[name]["success_observed"] += 1
+                    else:
+                        functions[name]["success_observed"] += 1
+
+        for i in range(len(self.gephi_headers)):
+            for name in functions:
+                weight = functions[name]["weight"][i]
+
+                try:
+                    failure = (functions[name]["fail_present"] * weight) / (functions[name]["success_present"] + (functions[name]["fail_present"] * weight))
+                    functions[name]["failure"] += [failure]
+                except:
+                    functions[name]["failure"] += [0.0]
+                
+                try:
+                    context = (functions[name]["fail_present"] * weight) / (functions[name]["success_observed"] + (functions[name]["fail_observed"] * weight))
+                    functions[name]["context"] += [context]
+                except:
+                    functions[name]["context"] += [0.0]
+                
+                try:
+                    increase = functions[name]["failure"][i] - functions[name]["context"][i]
+                    functions[name]["increase"] += [increase]
+                except:
+                    functions[name]["increase"] += [0.0]
+                
+                try:
+                    importance = 2 / ((1/functions[name]["increase"][i])+(1/(math.log(functions[name]["fail_present"]*weight)/math.log(functions[name]["fails"]*weight))))
+                except:
+                    importance_p = 0.0
+
+
+        for i in range(len(self.gephi_headers)):
+
+            f = open(self.gephi_headers[i]+".csv", "w")
+            f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
+
+            for name in functions:
+                minimum = min(functions[name]["periods"])
+                maximum = max(functions[name]["periods"])
+                mean = 0.0
+                stdev = 0.0
+
+                try:
+                    mean = statistics.mean(functions[name]["periods"])
+                    stdev = statistics.stdev(functions[name]["periods"])
+                except:
+                    mean = float(functions[name]["periods"][0])
+                    stdev = 0.0
+
+                string_builder = name+","+str(len(functions[name]["periods"]))+","+str(functions[name]["successes"])+","+str(functions[name]["fails"])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(functions[name]["failure"][i])+","+str(functions[name]["context"][i])+","+str(functions[name]["increase"][i])+","+str(functions[name]["importance"][i])+"\n"
+                f.write(string_builder)
+
+            f.close()
+
+        print("Writing to file complete.")
+
 
     def generate_functions_with_weights(self):
         functions = self.generate_functions()
 
         gephi_file = "/home/a/Desktop/c_code/bin/Debug/gephi.csv"
         print("Reading gephi data...")
-        gephi_header=[]
         with open("gephi.csv") as file:
             header_ignore = True
             for line in file:
                 if header_ignore:
                     line = line.replace("\n","")
-                    gephi_header = line.split(",")[1:]
+                    self.gephi_headers = line.split(",")[1:]
                     header_ignore = False
                     continue
 
                 line = line.replace("\n","")
 
-                func_data = line.split(",")
+                func_data = float(line.split(","))
 
                 for name in functions:
                     if name == func_data[0]:
@@ -156,7 +229,17 @@ class EventList:
                         functions[func] = {
                             "periods": [eventsByName[name]["spans"][i]],
                             "is_period_executor": [is_first],
-                            "weight": [] 
+                            "weight": [],
+                            "fails": 0,
+                            "fail_present": 0,
+                            "fail_observed": 0,
+                            "successes" : 0,
+                            "success_present": 0,
+                            "success_observed": 0,
+                            "failure": [],
+                            "context": [],
+                            "increase": [],
+                            "importance": []
                         }
                     is_first = False
 
