@@ -293,18 +293,25 @@ class EventList:
 
 
 
+
+
+
+
+
+# Create a map of syscalls
+syscalls = [] 
+
+# Create a trace collection message iterator with this path.
+msg_it = bt2.TraceCollectionMessageIterator("test")
+
+# Last event's time (ns from origin).
+last_event_ns_from_origin = None
+
+event_list = EventList()
+
 def create_pair_list_from_trace():
 
-    # Create a map of syscalls
-    syscalls = [] 
 
-    # Create a trace collection message iterator with this path.
-    msg_it = bt2.TraceCollectionMessageIterator("test")
-
-    # Last event's time (ns from origin).
-    last_event_ns_from_origin = None
-
-    event_list = EventList()
 
     # Iterate the trace messages.
     for idx, msg in enumerate(msg_it):
@@ -372,36 +379,67 @@ def create_pair_list_from_trace():
 
 
 
+#########################################################################################
 
-print(event_list.generate())
+try:
+
+    if len(sys.argv) < 2:
+        print("Some arguments are missing.")
+        sys.exit()
+    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 1:
+        print("Invalid arguments.")
+        sys.exit()
+except:
+    print("Correct format: \n1: for function pair list generation\n2:context aware statistical debugging")
+    sys.exit()
 
 
-# event_list.print_all()
 
-event_list_flattened = event_list.flatten()
 
-df_event_list_flattened = pd.DataFrame.from_records(event_list_flattened)
-print(df_event_list_flattened)
+mode = int(sys.argv[1])
+
+if mode == 1:
+    print("Generate function pair list selected.")
+    print("Starting...")
+    create_pair_list_from_trace()
+    print("Complete! Next use the file to input into gephi and then export from gephi and use mode 2 for context aware statistical debugging.")
+elif mode == 2:
+    print("Generate context aware statistical debugging selected.")
+    print("Starting...")
+    event_list.final_weighted_calculations()
+    print("Complete!")
+
+
+
+
+
+
+# # event_list.print_all()
+
+# event_list_flattened = event_list.flatten()
+
+# df_event_list_flattened = pd.DataFrame.from_records(event_list_flattened)
+# print(df_event_list_flattened)
 
  
 
 
-averages = event_list.average_durations()
-df_event_list_averages = pd.DataFrame.from_records(averages, index=['1'])
-print(df_event_list_averages)
+# averages = event_list.average_durations()
+# df_event_list_averages = pd.DataFrame.from_records(averages, index=['1'])
+# print(df_event_list_averages)
 
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-fig = plt.figure()
-ax = fig.add_axes([0,0,1,1])
-ax.set_title('Average durations of system calls')
-events = averages.keys()
-durations = averages.values()
-ax.bar(events,durations)
-plt.xlabel('System Calls')
-plt.xticks(rotation = 45)
-plt.ylabel('Duration (ns)')
-plt.yticks(rotation=45)
-plt.show()
+# fig = plt.figure()
+# ax = fig.add_axes([0,0,1,1])
+# ax.set_title('Average durations of system calls')
+# events = averages.keys()
+# durations = averages.values()
+# ax.bar(events,durations)
+# plt.xlabel('System Calls')
+# plt.xticks(rotation = 45)
+# plt.ylabel('Duration (ns)')
+# plt.yticks(rotation=45)
+# plt.show()
 
