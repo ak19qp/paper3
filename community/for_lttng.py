@@ -293,81 +293,84 @@ class EventList:
 
 
 
+def create_pair_list_from_trace():
+
+    # Create a map of syscalls
+    syscalls = [] 
+
+    # Create a trace collection message iterator with this path.
+    msg_it = bt2.TraceCollectionMessageIterator("test")
+
+    # Last event's time (ns from origin).
+    last_event_ns_from_origin = None
+
+    event_list = EventList()
+
+    # Iterate the trace messages.
+    for idx, msg in enumerate(msg_it):
+        if idx == 1000000000000:
+            break
+        # `bt2._EventMessageConst` is the Python type of an event message.
+        if type(msg) is bt2._EventMessageConst:
+
+            if msg.event["pid"] != 8715:
+                continue
+
+            cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
 
 
-# Create a map of syscalls
-syscalls = [] 
-
-# Create a trace collection message iterator with this path.
-msg_it = bt2.TraceCollectionMessageIterator("test")
-
-# Last event's time (ns from origin).
-last_event_ns_from_origin = None
-
-event_list = EventList()
-
-# Iterate the trace messages.
-for idx, msg in enumerate(msg_it):
-    if idx == 1000000000000:
-        break
-    # `bt2._EventMessageConst` is the Python type of an event message.
-    if type(msg) is bt2._EventMessageConst:
-
-        if msg.event["pid"] != 8715:
-            continue
-
-        cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
-
-
-        event = {
-            "cpu_id": msg.event["cpu_id"],
-            "name": msg.event.name,
-            "timestamp": msg.default_clock_snapshot.ns_from_origin,
-            "callstack_user": cs_user
-        }
-        event_list.add(event)
-
-
-
-
-print("Writing the new thing...")
-
-
-
-newthing = []
-
-f = open("newthing.csv", "w")
-f.write("Id,Source,Target,Interval\n")
-
-count = -1
-for i in range(event_list.no_of_ele()):
-    keys = [zz for zz in event_list.eventsByCpuId[i]]
-    for j in range(len(keys)):
-
-        syscall = keys[j]
-        length = 0
-        if len(event_list.eventsByCpuId[i][syscall]['spans']) <= len(event_list.eventsByCpuId[i][syscall]['callstack_user']):
-            length = len(event_list.eventsByCpuId[i][syscall]['spans'])
-        else:
-            length = len(event_list.eventsByCpuId[i][syscall]['callstack_user'])
-
-        for k in range(length):
-            period = event_list.eventsByCpuId[i][syscall]['spans'][k]
-            callstack = event_list.eventsByCpuId[i][syscall]['callstack_user'][k]
-            if len(callstack) > 1:
-                callstack.reverse()
-                for l in range(len(callstack)-1):
-                    count = count+1
-                    str_opt = str(count)+","+callstack[l]+","+callstack[l+1]+","+str(period)+"\n"
-                    f.write(str_opt)
-                    newthing.append(str_opt)
+            event = {
+                "cpu_id": msg.event["cpu_id"],
+                "name": msg.event.name,
+                "timestamp": msg.default_clock_snapshot.ns_from_origin,
+                "callstack_user": cs_user
+            }
+            event_list.add(event)
 
 
 
 
-f.close()
+    print("Writing the pair list...")
 
-print("new thing done")
+
+
+    pairlist = []
+
+    f = open("pairlist.csv", "w")
+    f.write("Id,Source,Target,Interval\n")
+
+    count = -1
+    for i in range(event_list.no_of_ele()):
+        keys = [zz for zz in event_list.eventsByCpuId[i]]
+        for j in range(len(keys)):
+
+            syscall = keys[j]
+            length = 0
+            if len(event_list.eventsByCpuId[i][syscall]['spans']) <= len(event_list.eventsByCpuId[i][syscall]['callstack_user']):
+                length = len(event_list.eventsByCpuId[i][syscall]['spans'])
+            else:
+                length = len(event_list.eventsByCpuId[i][syscall]['callstack_user'])
+
+            for k in range(length):
+                period = event_list.eventsByCpuId[i][syscall]['spans'][k]
+                callstack = event_list.eventsByCpuId[i][syscall]['callstack_user'][k]
+                if len(callstack) > 1:
+                    callstack.reverse()
+                    for l in range(len(callstack)-1):
+                        count = count+1
+                        str_opt = str(count)+","+callstack[l]+","+callstack[l+1]+","+str(period)+"\n"
+                        f.write(str_opt)
+                        pairlist.append(str_opt)
+
+
+
+
+    f.close()
+
+    print("pair list created. Now import it to gephi.")
+
+
+
 
 
 print(event_list.generate())
