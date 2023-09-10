@@ -201,7 +201,7 @@ class EventList:
 
                 line = line.replace("\n","")
 
-                func_data = list(map(float, line.split(",")))
+                func_data = line.split(",")
 
                 for name in functions:
                     if name == func_data[0]:
