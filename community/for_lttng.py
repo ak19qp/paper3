@@ -309,31 +309,34 @@ last_event_ns_from_origin = None
 
 event_list = EventList()
 
+def read_from_trace():
+    print("reading from trace file...")
+    # Iterate the trace messages.
+    for idx, msg in enumerate(msg_it):
+        if idx == 1000000000000:
+            break
+        # `bt2._EventMessageConst` is the Python type of an event message.
+        if type(msg) is bt2._EventMessageConst:
 
-# Iterate the trace messages.
-for idx, msg in enumerate(msg_it):
-    if idx == 1000000000000:
-        break
-    # `bt2._EventMessageConst` is the Python type of an event message.
-    if type(msg) is bt2._EventMessageConst:
+            if msg.event["pid"] != 8715:
+                continue
 
-        if msg.event["pid"] != 8715:
-            continue
-
-        cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
+            cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
 
 
-        event = {
-            "cpu_id": msg.event["cpu_id"],
-            "name": msg.event.name,
-            "timestamp": msg.default_clock_snapshot.ns_from_origin,
-            "callstack_user": cs_user
-        }
-        event_list.add(event)
+            event = {
+                "cpu_id": msg.event["cpu_id"],
+                "name": msg.event.name,
+                "timestamp": msg.default_clock_snapshot.ns_from_origin,
+                "callstack_user": cs_user
+            }
+            event_list.add(event)
 
-        
+
 
 def create_pair_list_from_trace():
+
+    read_from_trace()
 
     print("Writing the pair list...")
 
@@ -404,6 +407,7 @@ if mode == 1:
 elif mode == 2:
     print("Generate context aware statistical debugging selected.")
     print("Starting...")
+    read_from_trace()
     event_list.final_weighted_calculations()
     print("Complete!")
 
