@@ -9,7 +9,6 @@ class EventList:
 
     function_address = []
     function_name = []
-    unique_functions = []
     func_set = set()
     gephi_headers = []
 
@@ -24,6 +23,9 @@ class EventList:
                 
                 line = line.replace("\n","")
                 line = line.strip()
+
+                if "c_code" not in line:
+                    continue
 
 
                 match = re.search(r'^([0-9a-f]+)\s.*$', line)
@@ -76,38 +78,126 @@ class EventList:
         num_exits = len(self.eventsByCpuId[event["cpu_id"]][event_name]["exits"])
 
 
+        at_least_one_found = False
+        first_one_found = False
 
         for j in range(len(event["callstack_user"])):
             for i in range(len(self.function_address)):
                 if event["callstack_user"][j] == self.function_address[i]:
                     event["callstack_user"][j] = self.function_name[i]
-                self.func_set.add(event["callstack_user"][j])
+                    at_least_one_found = True
+                    break
+            if j == 0 and at_least_one_found:
+                first_one_found = True
+
+        if at_least_one_found and not first_one_found:
+            event["callstack_user"].pop(0)
+
+
+
                 
 
-
-
-
-        if num_entries == num_exits and event_is_entry:
+        if num_entries == num_exits and event_is_entry and at_least_one_found:
             self.eventsByCpuId[event["cpu_id"]][event_name]["entries"].append(event["timestamp"])
             self.eventsByCpuId[event["cpu_id"]][event_name]["callstack_user"].append(event["callstack_user"])
         elif num_entries > num_exits and not event_is_entry:
             self.eventsByCpuId[event["cpu_id"]][event_name]["exits"].append(event["timestamp"])
         elif num_entries > num_exits and event_is_entry:
             self.eventsByCpuId[event["cpu_id"]][event_name]["entries"].pop()
-            self.eventsByCpuId[event["cpu_id"]][event_name]["entries"].append(event["timestamp"])
             self.eventsByCpuId[event["cpu_id"]][event_name]["callstack_user"].pop()
-            self.eventsByCpuId[event["cpu_id"]][event_name]["callstack_user"].append(event["callstack_user"])
-        elif event_is_entry:
+            if at_least_one_found:
+                self.eventsByCpuId[event["cpu_id"]][event_name]["entries"].append(event["timestamp"])
+                self.eventsByCpuId[event["cpu_id"]][event_name]["callstack_user"].append(event["callstack_user"])
+        elif num_entries < num_exits and event_is_entry:
             self.eventsByCpuId[event["cpu_id"]][event_name]["exits"].pop()
 
 
+
         num_exits = len(self.eventsByCpuId[event["cpu_id"]][event_name]["exits"])
-        if num_entries != 0 and num_entries == num_exits:
+        if num_entries != 0 and num_entries == num_exits and not event_is_entry:
             self.eventsByCpuId[event["cpu_id"]][event_name]["spans"].append(
                 self.eventsByCpuId[event["cpu_id"]][event_name]["exits"][num_exits - 1] -
                 self.eventsByCpuId[event["cpu_id"]][event_name]["entries"][num_entries - 1]
             )
 
+
+    def final_non_weighted_calculations(self):
+        functions = self.generate_functions()
+
+        threshold = 10
+
+        for name in functions:
+            for i in range(len(functions[name]["periods"])):
+                if functions[name]["periods"][i] >= threshold:
+                    functions[name]["fails"] += 1
+                    if functions[name]["is_period_executor"][i]:
+                        functions[name]["fail_present"] += 1
+                        functions[name]["fail_observed"] += 1
+                    else:
+                        functions[name]["fail_observed"] += 1
+                else:
+                    functions[name]["successes"] += 1
+                    if functions[name]["is_period_executor"][i]:
+                        functions[name]["success_present"] += 1
+                        functions[name]["success_observed"] += 1
+                    else:
+                        functions[name]["success_observed"] += 1
+
+        i = 0
+
+        for name in functions:
+            try:
+                failure = (functions[name]["fail_present"]) / (functions[name]["success_present"] + (functions[name]["fail_present"]))
+                functions[name]["failure"] += [failure]
+            except:
+                functions[name]["failure"] += [0.0]
+            
+            try:
+                context = (functions[name]["fail_present"]) / (functions[name]["success_observed"] + (functions[name]["fail_observed"]))
+                functions[name]["context"] += [context]
+            except:
+                functions[name]["context"] += [0.0]
+            
+            try:
+                increase = functions[name]["failure"][i] - functions[name]["context"][i]
+                functions[name]["increase"] += [increase]
+            except:
+                functions[name]["increase"] += [0.0]
+            
+            try:
+                importance = 2 / ((1/functions[name]["increase"][i])+(1/(math.log(functions[name]["fail_present"])/math.log(functions[name]["fails"]))))
+                functions[name]["importance"] += [importance]
+            except:
+                functions[name]["importance"] += [0.0]
+
+
+        f = open("regular_sd.csv", "w")
+        f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Failed(O),Failed(P),Success(O),Success(P),Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
+
+        for name in functions:
+            minimum = min(functions[name]["periods"])
+            maximum = max(functions[name]["periods"])
+            mean = 0.0
+            stdev = 0.0
+
+            try:
+                mean = statistics.mean(functions[name]["periods"])
+                stdev = statistics.stdev(functions[name]["periods"])
+            except:
+                mean = float(functions[name]["periods"][0])
+                stdev = 0.0
+
+            string_builder = name+","+str(len(functions[name]["periods"]))+","+str(functions[name]["successes"])+","+str(functions[name]["fails"])+","
+            string_builder = string_builder+str(functions[name]["fail_observed"])+","+str(functions[name]["fail_present"])+","+str(functions[name]["success_present"])+","+str(functions[name]["success_observed"])+","
+            string_builder = string_builder+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(functions[name]["failure"][i])+","
+            string_builder = string_builder+str(functions[name]["context"][i])+","+str(functions[name]["increase"][i])+","
+            string_builder = string_builder+str(functions[name]["importance"][i])+"\n"
+
+            f.write(string_builder)
+
+        f.close()
+
+        print("Writing to file complete.")
 
     def final_weighted_calculations(self):
         functions = self.generate_functions_with_weights()
@@ -155,14 +245,15 @@ class EventList:
                 
                 try:
                     importance = 2 / ((1/functions[name]["increase"][i])+(1/(math.log(functions[name]["fail_present"]*weight)/math.log(functions[name]["fails"]*weight))))
+                    functions[name]["importance"] += [importance]
                 except:
-                    importance_p = 0.0
+                    functions[name]["importance"] += [0.0]
 
 
         for i in range(len(self.gephi_headers)):
 
             f = open(self.gephi_headers[i]+".csv", "w")
-            f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
+            f.write("Function,Total_Syscalls,Total_Syscalls_Success,Total_Syscalls_Failed,Failed(O),Failed(P),Success(O),Success(P),Min,Max,Average,Stdev,Failure,Context,Increase,Importance\n")
 
             for name in functions:
                 minimum = min(functions[name]["periods"])
@@ -177,7 +268,12 @@ class EventList:
                     mean = float(functions[name]["periods"][0])
                     stdev = 0.0
 
-                string_builder = name+","+str(len(functions[name]["periods"]))+","+str(functions[name]["successes"])+","+str(functions[name]["fails"])+","+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(functions[name]["failure"][i])+","+str(functions[name]["context"][i])+","+str(functions[name]["increase"][i])+","+str(functions[name]["importance"][i])+"\n"
+                string_builder = name+","+str(len(functions[name]["periods"]))+","+str(functions[name]["successes"])+","+str(functions[name]["fails"])+","
+                string_builder = string_builder+str(functions[name]["fail_observed"])+","+str(functions[name]["fail_present"])+","+str(functions[name]["success_present"])+","+str(functions[name]["success_observed"])+","
+                string_builder = string_builder+str(minimum)+","+str(maximum)+","+str(mean)+","+str(stdev)+","+str(functions[name]["failure"][i])+","
+                string_builder = string_builder+str(functions[name]["context"][i])+","+str(functions[name]["increase"][i])+","
+                string_builder = string_builder+str(functions[name]["importance"][i])+"\n"
+
                 f.write(string_builder)
 
             f.close()
@@ -207,6 +303,16 @@ class EventList:
                     if name == func_data[0]:
                         functions[name]["weight"] += [float(p) for p in func_data[1:]]
                         break
+
+        print("removing functions with no weight data...")
+
+        names_for_pop = []
+        for name in functions:
+            if len(functions[name]["weight"]) < 1:
+                names_for_pop.append(name) 
+
+        for name in names_for_pop:
+            functions.pop(name)
 
         return functions
 
@@ -248,6 +354,7 @@ class EventList:
 
 
     def flatten(self):
+
         eventsByName = {}
 
         for cpu_id in self.eventsByCpuId:
@@ -298,6 +405,7 @@ class EventList:
 
 
 
+
 # Create a map of syscalls
 syscalls = [] 
 
@@ -331,6 +439,8 @@ def read_from_trace():
                 "callstack_user": cs_user
             }
             event_list.add(event)
+
+
 
 
 
@@ -387,11 +497,11 @@ try:
     if len(sys.argv) < 2:
         print("Some arguments are missing.")
         sys.exit()
-    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 1:
+    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 0:
         print("Invalid arguments.")
         sys.exit()
 except:
-    print("Correct format: \n1: for function pair list generation\n2: context aware statistical debugging")
+    print("Correct format: \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
     sys.exit()
 
 
@@ -399,7 +509,13 @@ except:
 
 mode = int(sys.argv[1])
 
-if mode == 1:
+if mode == 0:
+    print("Regular statistical debugging selected.")
+    print("Starting...")
+    read_from_trace()
+    event_list.final_non_weighted_calculations()
+    print("Complete!")
+elif mode == 1:
     print("Generate function pair list selected.")
     print("Starting...")
     create_pair_list_from_trace()
