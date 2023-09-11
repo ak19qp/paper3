@@ -509,6 +509,8 @@ except:
 
 mode = int(sys.argv[1])
 
+print("Don't FORGET TO CHANGE PID in the code!")
+
 if mode == 0:
     print("Regular statistical debugging selected.")
     print("Starting...")
