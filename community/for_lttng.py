@@ -409,81 +409,6 @@ class EventList:
 
 
 
-
-
-############################################################################################################
-
-try:
-    print("format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
-        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
-
-    if len(sys.argv) < 6:
-        print("Some arguments are missing.")
-        sys.exit()
-    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 0:
-        print("Invalid arguments.")
-        sys.exit()
-except:
-    print("\n\nCorrect format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
-        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
-    sys.exit()
-
-
-
-
-mode = int(sys.argv[1])
-
-procname = sys.argv[2]
-
-pid = int(sys.argv[3])
-
-perf_file = sys.argv[4]
-
-trace_folder = sys.argv[5]
-
-threshold = int(sys.argv[6])
-
-gephi_file = sys.argv[7]
-
-
-
-
-# Create a map of syscalls
-syscalls = [] 
-
-# Create a trace collection message iterator with this path.
-msg_it = bt2.TraceCollectionMessageIterator(trace_folder)
-
-# Last event's time (ns from origin).
-last_event_ns_from_origin = None
-
-event_list = EventList(perf_file, procname, threshold)
-
-
-
-
-if mode == 0:
-    print("Regular statistical debugging selected.")
-    print("Starting...")
-    read_from_trace()
-    event_list.final_non_weighted_calculations()
-    print("Complete!")
-elif mode == 1:
-    print("Generate function pair list selected.")
-    print("Starting...")
-    create_pair_list_from_trace()
-    print("Complete! Next use the file to input into gephi and then export from gephi and use mode 2 for context aware statistical debugging.")
-elif mode == 2:
-    print("Generate context aware statistical debugging selected.")
-    print("Starting...")
-    read_from_trace()
-    event_list.final_weighted_calculations()
-    print("Complete!")
-
-
-
-
-
 ######################################################################################
 
 def read_from_trace():
@@ -561,6 +486,87 @@ def create_pair_list_from_trace():
 
 
 #########################################################################################
+
+
+
+
+
+############################################################################################################
+
+try:
+    print("format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
+        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
+
+    if len(sys.argv) < 6:
+        print("Some arguments are missing.")
+        sys.exit()
+    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 0:
+        print("Invalid arguments.")
+        sys.exit()
+except:
+    print("\n\nCorrect format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
+        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
+    sys.exit()
+
+
+
+
+mode = int(sys.argv[1])
+
+procname = sys.argv[2]
+
+pid = int(sys.argv[3])
+
+perf_file = sys.argv[4]
+
+trace_folder = sys.argv[5]
+
+threshold = int(sys.argv[6])
+
+
+gephi_file = ""
+
+if mode == 2:
+    gephi_file = sys.argv[7]
+
+
+
+
+# Create a map of syscalls
+syscalls = [] 
+
+# Create a trace collection message iterator with this path.
+msg_it = bt2.TraceCollectionMessageIterator(trace_folder)
+
+# Last event's time (ns from origin).
+last_event_ns_from_origin = None
+
+event_list = EventList(perf_file, procname, threshold)
+
+
+
+
+if mode == 0:
+    print("Regular statistical debugging selected.")
+    print("Starting...")
+    read_from_trace()
+    event_list.final_non_weighted_calculations()
+    print("Complete!")
+elif mode == 1:
+    print("Generate function pair list selected.")
+    print("Starting...")
+    create_pair_list_from_trace()
+    print("Complete! Next use the file to input into gephi and then export from gephi and use mode 2 for context aware statistical debugging.")
+elif mode == 2:
+    print("Generate context aware statistical debugging selected.")
+    print("Starting...")
+    read_from_trace()
+    event_list.final_weighted_calculations()
+    print("Complete!")
+
+
+
+
 
 
 # # event_list.print_all()
