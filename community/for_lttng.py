@@ -11,11 +11,13 @@ class EventList:
     function_name = []
     func_set = set()
     gephi_headers = []
+    threshold = 0
 
-    def __init__(self):
+    def __init__(self, perf_file, procname, threshold):
+        self.threshold = threshold
         self.eventsByCpuId = {}
 
-        perf_file = "/home/a/Desktop/c_code/bin/Debug/perf_output.txt"
+        # perf_file = "/home/a/Desktop/c_code/bin/Debug/perf_output.txt"
 
         with open(perf_file) as file:
 
@@ -24,7 +26,10 @@ class EventList:
                 line = line.replace("\n","")
                 line = line.strip()
 
-                if "c_code" not in line:
+                # if "c_code" not in line:
+                #     continue
+
+                if procname not in line:
                     continue
 
 
@@ -124,7 +129,7 @@ class EventList:
     def final_non_weighted_calculations(self):
         functions = self.generate_functions()
 
-        threshold = 10
+        threshold = self.threshold
 
         for name in functions:
             for i in range(len(functions[name]["periods"])):
@@ -202,7 +207,7 @@ class EventList:
     def final_weighted_calculations(self):
         functions = self.generate_functions_with_weights()
 
-        threshold = 10
+        threshold = self.threshold
 
         for name in functions:
             for i in range(len(functions[name]["periods"])):
@@ -406,27 +411,92 @@ class EventList:
 
 
 
+############################################################################################################
+
+try:
+    print("format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
+        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
+
+    if len(sys.argv) < 6:
+        print("Some arguments are missing.")
+        sys.exit()
+    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 0:
+        print("Invalid arguments.")
+        sys.exit()
+except:
+    print("\n\nCorrect format: [mode] [procname filter] [pid filter] [perf file] [trace folder] [threshold in ms] [gephi export file - optional (to be used with mode 2)]"+
+        "\nModes:- \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
+    sys.exit()
+
+
+
+
+mode = int(sys.argv[1])
+
+procname = sys.argv[2]
+
+pid = int(sys.argv[3])
+
+perf_file = sys.argv[4]
+
+trace_folder = sys.argv[5]
+
+threshold = int(sys.argv[6])
+
+gephi_file = sys.argv[7]
+
+
+
+
 # Create a map of syscalls
 syscalls = [] 
 
 # Create a trace collection message iterator with this path.
-msg_it = bt2.TraceCollectionMessageIterator("test")
+msg_it = bt2.TraceCollectionMessageIterator(trace_folder)
 
 # Last event's time (ns from origin).
 last_event_ns_from_origin = None
 
-event_list = EventList()
+event_list = EventList(perf_file, procname, threshold)
+
+
+
+
+if mode == 0:
+    print("Regular statistical debugging selected.")
+    print("Starting...")
+    read_from_trace()
+    event_list.final_non_weighted_calculations()
+    print("Complete!")
+elif mode == 1:
+    print("Generate function pair list selected.")
+    print("Starting...")
+    create_pair_list_from_trace()
+    print("Complete! Next use the file to input into gephi and then export from gephi and use mode 2 for context aware statistical debugging.")
+elif mode == 2:
+    print("Generate context aware statistical debugging selected.")
+    print("Starting...")
+    read_from_trace()
+    event_list.final_weighted_calculations()
+    print("Complete!")
+
+
+
+
+
+######################################################################################
 
 def read_from_trace():
+    global pid
     print("reading from trace file...")
     # Iterate the trace messages.
     for idx, msg in enumerate(msg_it):
-        if idx == 1000000000000:
+        if idx == 100000000000000:
             break
         # `bt2._EventMessageConst` is the Python type of an event message.
         if type(msg) is bt2._EventMessageConst:
 
-            if msg.event["pid"] != 8715:
+            if msg.event["pid"] != pid:
                 continue
 
             cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
@@ -491,47 +561,6 @@ def create_pair_list_from_trace():
 
 
 #########################################################################################
-
-try:
-
-    if len(sys.argv) < 2:
-        print("Some arguments are missing.")
-        sys.exit()
-    elif int(sys.argv[1]) > 2 or int(sys.argv[1]) < 0:
-        print("Invalid arguments.")
-        sys.exit()
-except:
-    print("Correct format: \n0: Regular statistical debugging\n1: function pair list generation\n2: context aware statistical debugging")
-    sys.exit()
-
-
-
-
-mode = int(sys.argv[1])
-
-print("Don't FORGET TO CHANGE PID in the code!")
-
-if mode == 0:
-    print("Regular statistical debugging selected.")
-    print("Starting...")
-    read_from_trace()
-    event_list.final_non_weighted_calculations()
-    print("Complete!")
-elif mode == 1:
-    print("Generate function pair list selected.")
-    print("Starting...")
-    create_pair_list_from_trace()
-    print("Complete! Next use the file to input into gephi and then export from gephi and use mode 2 for context aware statistical debugging.")
-elif mode == 2:
-    print("Generate context aware statistical debugging selected.")
-    print("Starting...")
-    read_from_trace()
-    event_list.final_weighted_calculations()
-    print("Complete!")
-
-
-
-
 
 
 # # event_list.print_all()
