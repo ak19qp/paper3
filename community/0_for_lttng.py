@@ -14,10 +14,13 @@ class EventList:
     threshold = 0
 
     def __init__(self, perf_file, procname, threshold):
+
         self.threshold = threshold
         self.eventsByCpuId = {}
 
         # perf_file = "/home/a/Desktop/c_code/bin/Debug/perf_output.txt"
+
+        print("reading perf data...")
 
         with open(perf_file) as file:
 
@@ -597,3 +600,4 @@ elif mode == 2:
 # plt.ylabel('Duration (ns)')
 # plt.yticks(rotation=45)
 # plt.show()
+
