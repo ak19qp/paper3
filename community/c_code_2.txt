@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,6 +7,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <curl/curl.h>
+
 
 // Function declarations
 int add(int a, int b);
@@ -15,7 +19,6 @@ int findMax(int a, int b);
 int findMin(int a, int b);
 int isEven(int num);
 int isOdd(int num);
-int factorial(int num);
 void printArray(int arr[], int size);
 int chain1(int x);
 int chain2(int x);
@@ -27,111 +30,108 @@ int chain7(int x);
 int chain8(int x);
 int chain9(int x);
 int chain10(int x);
-void readLargeFileBug(int x);
 void networkBug(int x);
+int factorial(int n);
+int facto();
+
+
+static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    size_t written = fwrite(ptr, size, nmemb, (FILE*) stream);
+    return written;
+}
 
 
 void networkBug(int x){
 
-    printf(system("curl --connect-timeout 1 -sS http://www.google.com"));
-    printf("\n\n");
 
-    if (rand() % 100 <= x){
-        printf("Simulating network bug\n");
-        printf(system("curl --connect-timeout 1 -sS 129.145.0.5"));
-        printf("\n\n");
+    CURL * curl;
+    FILE * fp;
+    CURLcode res;
+
+
+
+    // Initialize libcurl
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    if (curl)
+    {
+        fp = fopen("output.txt", "wb");
+
+        // Set the URL
+        if (rand() % 100 <= x){
+            printf("Simulating network bug\n");
+            curl_easy_setopt(curl, CURLOPT_URL, "http://www.northsouth.edu");
+        }else{
+            printf("No bugs selected\n");
+            curl_easy_setopt(curl, CURLOPT_URL, "http://www.google.com");
+        }
+
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 1000);
+
+
+        // Make the request
+        res = curl_easy_perform(curl);
+        // Check for errors
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        }
+
+        // Cleanup
+        fclose(fp);
+        curl_easy_cleanup(curl);
     }
 
+    // Cleanup libcurl
+    curl_global_cleanup();
 }
+
+//void networkBug(int x){
+//
+//    char y = system("curl --connect-timeout 1 -sS http://www.google.com");
+//
+//    printf(y);
+//    printf("\n\n");
+//
+//    if (rand() % 100 <= x){
+//        printf("Simulating network bug\n");
+//        char y = system("curl --connect-timeout 1 -sS http://www.northsouth.edu");
+//
+//        printf(y);
+//        printf("\n\n");
+//    }
+//
+//}
 
 
 // Function to add two numbers and demonstrate process creation
 int add(int a, int b) {
-    int result = a + b;
+    fato();
+    int result = + b;
     printf("Addition Result: %d\n", result);
-
-    // Demonstrate process creation
-    pid_t child_pid = fork();
-
-    if (child_pid == -1) {
-        printf("Error: Fork failed.\n");
-    } else if (child_pid == 0) {
-        // Child process
-        printf("Child process: Process ID: %d, Parent ID: %d\n", getpid(), getppid());
-    } else {
-        // Parent process
-        int status;
-        wait(&status);
-        printf("Parent process: Child process completed.\n");
-    }
 
     return result;
 }
 
 // Function to subtract two numbers and then call findMin
 int subtract(int a, int b) {
+    fato();
     int result = a - b;
     printf("Subtraction Result: %d\n", result);
 
-//    // Demonstrate file I/O system call
-//    FILE *file = fopen("output.txt", "a");
-//    if (file != NULL) {
-//        fprintf(file, "Subtraction Result: %d\n", result);
-//        fclose(file);
-//    }
 
     return findMin(result, b);
 }
 
-void readLargeFileBug(int x) {
 
-    if (rand() % 100 <= x){
-
-        printf("Simulating a long system call with a background file read...\n");
-        int fd = open("large_file.txt", O_RDONLY); // Replace 'large_file.txt' with the actual large file name
-        char buffer[1024];
-        int bytesRead;
-        while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
-            // Reading the file contents (do nothing with the read data)
-        }
-        close(fd);
-    }
-
-
-}
 // Function to multiply two numbers and then call divide
 int multiply(int a, int b) {
+    fato();
     int result = a * b;
     printf("Multiplication Result: %d\n", result);
 
-//    // Introduce a bug: Simulate a long system call with a background file read
-//    if (result % 2 == 0) {
-//        printf("Simulating a long system call with a background file read...\n");
-//        int fd = open("large_file.txt", O_RDONLY); // Replace 'large_file.txt' with the actual large file name
-//        char buffer[1024];
-//        int bytesRead;
-//
-//        // Perform the file read in the background
-//        if (fd != -1) {
-//            int pid = fork();
-//
-//            if (pid == -1) {
-//                printf("Error: Fork failed.\n");
-//            } else if (pid == 0) {
-//                // Child process - perform the file read
-//                while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
-//                    // Reading the file contents (do nothing with the read data)
-//                }
-//                close(fd);
-//                exit(0);
-//            }
-//            // Parent process - continue with the computation
-//        }
-//    }
 
-
-    // ...
-    // Demonstrate time-related system call
     time_t current_time;
     time(&current_time);
     printf("Current Time: %s", ctime(&current_time));
@@ -141,6 +141,7 @@ int multiply(int a, int b) {
 
 // Function to divide two numbers
 float divide(float a, float b) {
+    fato();
     if (b == 0) {
         printf("Error: Cannot divide by zero!\n");
         return 0;
@@ -149,30 +150,13 @@ float divide(float a, float b) {
     float result = a / b;
     printf("Division Result: %f\n", result);
 
-    // Demonstrate process creation and execution of another program
-    if (result > 10) {
-        pid_t child_pid = fork();
-
-        if (child_pid == -1) {
-            printf("Error: Fork failed.\n");
-        } else if (child_pid == 0) {
-            // Child process
-            execl("/bin/echo", "echo", "Result is greater than 10!", NULL);
-            printf("Child process: Failed to execute echo command.\n");
-            exit(1);
-        } else {
-            // Parent process
-            int status;
-            wait(&status);
-            printf("Parent process: Child process completed.\n");
-        }
-    }
 
     return result;
 }
 
 // Function to find the maximum of two numbers
 int findMax(int a, int b) {
+    fato();
     if (a == b) {
         printf("Warning: Numbers are equal!\n");
     }
@@ -198,6 +182,7 @@ int findMax(int a, int b) {
 
 // Function to find the minimum of two numbers and then call isEven
 int findMin(int a, int b) {
+    fato();
     if (a == b) {
         printf("Warning: Numbers are equal!\n");
     }
@@ -215,6 +200,7 @@ int findMin(int a, int b) {
 
 // Function to check if a number is even
 int isEven(int num) {
+    fato();
     if (num < 0) {
         printf("Warning: Input is negative!\n");
     }
@@ -222,26 +208,13 @@ int isEven(int num) {
     int result = (num % 2 == 0);
     printf("%d is %s\n", num, (result ? "even" : "odd"));
 
-    // Demonstrate process creation
-    pid_t child_pid = fork();
-
-    if (child_pid == -1) {
-        printf("Error: Fork failed.\n");
-    } else if (child_pid == 0) {
-        // Child process
-        printf("Child process: Process ID: %d, Parent ID: %d\n", getpid(), getppid());
-    } else {
-        // Parent process
-        int status;
-        wait(&status);
-        printf("Parent process: Child process completed.\n");
-    }
 
     return result;
 }
 
 // Function to check if a number is odd
 int isOdd(int num) {
+    fato();
     if (num < 0) {
         printf("Warning: Input is negative!\n");
     }
@@ -251,40 +224,9 @@ int isOdd(int num) {
     return result;
 }
 
-// Function to calculate the factorial of a number and then call subtract
-int factorial(int num) {
-    if (num < 0) {
-        printf("Error: Factorial is not defined for negative numbers!\n");
-        return 0;
-    }
-
-    int result = (num == 0 || num == 1) ? 1 : num * factorial(num - 1);
-    printf("Factorial of %d is %d\n", num, result);
-
-    // Demonstrate process creation and execution of another program
-    if (result < 50) {
-        pid_t child_pid = fork();
-
-        if (child_pid == -1) {
-            printf("Error: Fork failed.\n");
-        } else if (child_pid == 0) {
-            // Child process
-            execl("/bin/echo", "echo", "Result is less than 50!", NULL);
-            printf("Child process: Failed to execute echo command.\n");
-            exit(1);
-        } else {
-            // Parent process
-            int status;
-            wait(&status);
-            printf("Parent process: Child process completed.\n");
-        }
-    }
-
-    return subtract(result, 5);
-}
-
 // Function to print the elements of an array
 void printArray(int arr[], int size) {
+    fato();
     if (size <= 0) {
         printf("Error: Array size should be greater than zero!\n");
         return;
@@ -302,6 +244,7 @@ void printArray(int arr[], int size) {
 
 // Function chain 1
 int chain1(int x) {
+    fato();
     printf("Entering chain1...\n");
     int result = multiply(x, 3);
     return chain4(result);
@@ -309,6 +252,7 @@ int chain1(int x) {
 
 // Function chain 2
 int chain2(int x) {
+    fato();
     printf("Entering chain2...\n");
     int result = findMax(x, 3);
     return chain5(result);
@@ -316,6 +260,7 @@ int chain2(int x) {
 
 // Function chain 3
 int chain3(int x) {
+    fato();
     printf("Entering chain3...\n");
     int result = subtract(x, 3);
     return chain6(result);
@@ -323,6 +268,7 @@ int chain3(int x) {
 
 // Function chain 4
 int chain4(int x) {
+    fato();
     printf("Entering chain4...\n");
     int result = add(x, 3);
     networkBug(10);
@@ -331,6 +277,7 @@ int chain4(int x) {
 
 // Function chain 5
 int chain5(int x) {
+    fato();
     printf("Entering chain5...\n");
     int result = add(x,x);
     return chain8(result);
@@ -338,6 +285,7 @@ int chain5(int x) {
 
 // Function chain 6
 int chain6(int x) {
+    fato();
     printf("Entering chain6...\n");
     int result = chain2(x);
     networkBug(10);
@@ -346,6 +294,7 @@ int chain6(int x) {
 
 // Function chain 7
 int chain7(int x) {
+    fato();
     printf("Entering chain7...\n");
     int result = multiply(x, 3);
     networkBug(10);
@@ -354,6 +303,7 @@ int chain7(int x) {
 
 // Function chain 8
 int chain8(int x) {
+    fato();
     printf("Entering chain8...\n");
     int result = chain4(x);
     return result;
@@ -361,6 +311,7 @@ int chain8(int x) {
 
 // Function chain 9
 int chain9(int x) {
+    fato();
     printf("Entering chain9...\n");
     int result = findMin(x, 3);
     networkBug(50);
@@ -369,39 +320,58 @@ int chain9(int x) {
 
 // Function chain 10
 int chain10(int x) {
+    fato();
     printf("Entering chain10...\n");
     int result = divide(x, 3);
     return result;
 }
 
+
+int factorial(int n)
+{
+
+    for(int i=2;i<=n;i++)
+    {
+        int c=0;
+        for(int j=1;j<=i;j++)
+        {
+            if(i%j==0)
+            {
+                c++;
+            }
+        }
+
+       if(c==2)
+        {
+            i;
+        }
+    }
+    return 0;
+}
+
+int fato()
+{
+    return factorial(1000);
+}
 // ... Add more function chains here ...
 
 int main() {
+
     int a = 3, b = 3;
     float x = 3.0, y = 0.0;
     int arr[] = {1, -2, 3, 4, -5};
 
-    // Open a file for writing
-    FILE *file = fopen("output.txt", "w");
-    if (file == NULL) {
-        printf("Error: Unable to open the file for writing.\n");
-        return 1;
-    }
 
-    // Redirect standard output to the file
-    if (dup2(fileno(file), STDOUT_FILENO) == -1) {
-        printf("Error: Unable to redirect standard output to the file.\n");
-        fclose(file);
-        return 1;
-    }
 
     add(a, b);
     multiply(a, b);
-    factorial(a);
+
     printArray(arr, 5);
 
-    for(int i = 0; i < 1000; i++){
-
+    for(int i = 0; i < 2; i++){
+        add(a, b);
+        multiply(a, b);
+        printArray(arr, 5);
         // Call function chains
         chain1(rand() % 2);
         chain2(rand() % 2);
@@ -417,7 +387,6 @@ int main() {
     }
 
 
-    fclose(file);
 
     return 0;
 }
