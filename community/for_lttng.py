@@ -137,7 +137,7 @@ class EventList:
                     functions[name]["fails"] += 1
                     if functions[name]["is_period_executor"][i]:
                         functions[name]["fail_present"] += 1
-                        functions[name]["fail_observed"] += 1
+                        #functions[name]["fail_observed"] += 1
                     else:
                         functions[name]["fail_observed"] += 1
                 else:
@@ -158,7 +158,7 @@ class EventList:
                 functions[name]["failure"] += [0.0]
             
             try:
-                context = (functions[name]["fail_present"]) / (functions[name]["success_observed"] + (functions[name]["fail_observed"]))
+                context = (functions[name]["fail_observed"]) / (functions[name]["success_observed"] + (functions[name]["fails"]))
                 functions[name]["context"] += [context]
             except:
                 functions[name]["context"] += [0.0]
@@ -421,8 +421,8 @@ def read_from_trace():
         # `bt2._EventMessageConst` is the Python type of an event message.
         if type(msg) is bt2._EventMessageConst:
 
-            if msg.event["pid"] != pid:
-                continue
+            # if msg.event["pid"] != pid:
+            #     continue
 
             cs_user = [hex(x)[2:] for x in msg.event["callstack_user"]]
 
@@ -597,4 +597,3 @@ elif mode == 2:
 # plt.ylabel('Duration (ns)')
 # plt.yticks(rotation=45)
 # plt.show()
-
