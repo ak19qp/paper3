@@ -37,12 +37,15 @@ int facto();
 
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 {
+    fato();
     size_t written = fwrite(ptr, size, nmemb, (FILE*) stream);
     return written;
 }
 
 
 void networkBug(int x){
+
+    fato();
 
 
     CURL * curl;
@@ -351,7 +354,7 @@ int factorial(int n)
 
 int fato()
 {
-    return factorial(1000);
+    return factorial(100);
 }
 // ... Add more function chains here ...
 
