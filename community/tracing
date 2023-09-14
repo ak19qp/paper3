@@ -1,0 +1,24 @@
+sudo sysctl kernel.randomize_va_space=0
+
+sudo lttng destroy --all
+
+sudo lttng create
+sudo lttng enable-channel -k custom-channel --subbuf-size 256M
+sudo lttng add-context -k -c custom-channel -t procname -t pid -t vpid -t tid -t vtid
+sudo lttng add-context -k -c custom-channel --type=callstack-kernel --type=callstack-user
+sudo lttng enable-event -k --all -c custom-channel
+
+cd ~/Desktop/c_code/bin/Debug/
+# nm -C ./c_code > address_map.txt
+
+for i in {2..5}
+do
+	sudo lttng start
+	sudo perf record -g ./c_code
+    # sudo perf record -g -e 'syscalls:sys_*' ./c_code
+	sudo perf script > perf_output$i.txt
+	sudo lttng stop
+done
+
+
+sudo lttng destroy
